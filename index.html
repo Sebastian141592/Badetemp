@@ -1,0 +1,71 @@
+
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <title>Sanntidsdata fra MET</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 0;
+        }
+        header {
+            background-color: #87cefa;
+            padding: 1em;
+            color: white;
+            text-align: center;
+        }
+        #map {
+            height: 90vh;
+            width: 100%;
+        }
+        footer {
+            padding: 1em;
+            font-size: 0.9em;
+            color: #666;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🌦️ Badesteder i Larvik med sanntidsdata</h1>
+        <p>Data hentes direkte fra Meteorologisk institutt</p>
+    </header>
+    <div id="map"></div>
+    <footer>Oppdatert med MET.no-data | Sebastian & ChatGPT</footer>
+
+    <script>
+        var map = L.map('map').setView([59.05, 10.1], 11);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap-bidragsytere'
+        }).addTo(map);
+
+        var badesteder = [{'navn': 'Lydhusstranda', 'lat': 59.0703, 'lon': 10.0433}, {'navn': 'Stavernodden', 'lat': 58.9954, 'lon': 10.0441}, {'navn': 'Farris', 'lat': 59.055, 'lon': 10.0632}, {'navn': 'Rakke', 'lat': 58.9907, 'lon': 10.0342}, {'navn': 'Ula', 'lat': 59.0176, 'lon': 10.162}, {'navn': 'Gon', 'lat': 59.063, 'lon': 10.0611}, {'navn': 'Brunlanes', 'lat': 58.9932, 'lon': 10.1161}, {'navn': 'Svenner', 'lat': 58.9766, 'lon': 10.1384}, {'navn': 'Sjøparken', 'lat': 59.0597, 'lon': 10.0291}, {'navn': 'Nesjane', 'lat': 59.01, 'lon': 10.045}];
+
+        badesteder.forEach(function(sted) {
+            var url = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${sted.lat}&lon=${sted.lon}`;
+
+            fetch(url, {
+                headers: {
+                    'User-Agent': 'SebastiansBadetempApp/1.0 https://github.com/sebastian123/badetemp'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const now = data.properties.timeseries[0].data.instant.details;
+                const temp = now.air_temperature;
+                const wind = now.wind_speed;
+                const popup = `<b>${sted.navn}</b><br>Luft: ${temp}°C<br>Vind: ${wind} m/s`;
+                L.marker([sted.lat, sted.lon]).addTo(map).bindPopup(popup);
+            })
+            .catch(() => {
+                L.marker([sted.lat, sted.lon]).addTo(map)
+                  .bindPopup(`<b>${sted.navn}</b><br>Kunne ikke hente værdata`);
+            });
+        });
+    </script>
+</body>
+</html>
