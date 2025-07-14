@@ -1,0 +1,62 @@
+
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <title>Badetemperatur og Vær</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        header {
+            background-color: #87cefa;
+            color: white;
+            padding: 1em;
+            text-align: center;
+        }
+        #map {
+            height: 90vh;
+            width: 100%;
+        }
+        footer {
+            text-align: center;
+            padding: 1em;
+            font-size: 0.9em;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🌊 Badetemperatur og Vær</h1>
+        <p>Kart med badesteder i Norge</p>
+    </header>
+    <div id="map"></div>
+    <footer>Demo laget av Sebastian og ChatGPT</footer>
+
+    <script>
+        var map = L.map('map').setView([59.13, 10.23], 10); // Larvik-området
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap-bidragsytere'
+        }).addTo(map);
+
+        // Eksempel-badesteder med temperatur
+        var badesteder = [
+            { navn: "Lydhusstranda", lat: 59.0703, lon: 10.0433, temp: "19°C" },
+            { navn: "Stavernodden", lat: 58.9954, lon: 10.0441, temp: "18°C" },
+            { navn: "Farris", lat: 59.0550, lon: 10.0632, temp: "20°C" }
+        ];
+
+        badesteder.forEach(function(sted) {
+            L.marker([sted.lat, sted.lon])
+                .addTo(map)
+                .bindPopup(`<b>${sted.navn}</b><br>Vanntemp: ${sted.temp}`);
+        });
+    </script>
+</body>
+</html>
