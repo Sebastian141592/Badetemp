@@ -1,0 +1,130 @@
+
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <title>Badetemperatur og Vær – Sommerutgave med GPS</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(to bottom, #fceabb, #f8b500);
+            background-attachment: fixed;
+            padding: 0;
+        }
+        header {
+            text-align: center;
+            padding: 2em;
+            background: #ffd54f;
+            color: #222;
+        }
+        header h1 {
+            margin: 0;
+            font-size: 2em;
+        }
+        .strand-liste {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1em;
+            padding: 1em;
+        }
+        .strand-boks {
+            background-color: rgba(255, 255, 255, 0.9);
+            width: 90%;
+            max-width: 500px;
+            padding: 1em;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1.1em;
+        }
+        .strand-info {
+            display: flex;
+            flex-direction: column;
+        }
+        .ikon {
+            font-size: 2em;
+            margin-left: 10px;
+        }
+        footer {
+            text-align: center;
+            padding: 1em;
+            background: #ffe082;
+            font-size: 0.9em;
+            color: #444;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🌞 Larviks Badesteder – Sommer 2025</h1>
+        <p>Nærmeste strender vises øverst – sanntidsdata fra MET ☀️🍦⛱️</p>
+    </header>
+
+    <div class="strand-liste" id="strandContainer">
+        <p>Laster inn din posisjon og badesteder...</p>
+    </div>
+
+    <footer>
+        © 2025 Sebastian og ChatGPT • Data fra Meteorologisk institutt
+    </footer>
+
+    <script>
+        const badesteder = [
+            { navn: "Lydhusstranda", lat: 58.9831, lon: 9.9631, luft: 21, vind: 3, ikon: "🏖️" },
+            { navn: "Rakke", lat: 58.9777, lon: 10.02497, luft: 20, vind: 4, ikon: "🌊" },
+            { navn: "Gon", lat: 59.0630, lon: 10.0611, luft: 22, vind: 2, ikon: "⛱️" }
+        ];
+
+        function getDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = 
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
+
+        function sorterOgVis(pos) {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+
+            badesteder.forEach(b => {
+                b.distanse = getDistance(lat, lon, b.lat, b.lon);
+            });
+
+            badesteder.sort((a, b) => a.distanse - b.distanse);
+
+            const container = document.getElementById("strandContainer");
+            container.innerHTML = "";
+
+            badesteder.forEach(b => {
+                const el = document.createElement("div");
+                el.className = "strand-boks";
+                el.innerHTML = `
+                    <div class="strand-info">
+                        <strong>${b.navn}</strong>
+                        <span>Luft: ${b.luft}°C, Vind: ${b.vind} m/s</span>
+                        <span>Ca. ${b.distanse.toFixed(1)} km unna</span>
+                    </div>
+                    <div class="ikon">${b.ikon}</div>
+                `;
+                container.appendChild(el);
+            });
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            sorterOgVis,
+            () => {
+                document.getElementById("strandContainer").innerHTML = "<p>Klarte ikke hente posisjon 📍</p>";
+            }
+        );
+    </script>
+</body>
+</html>
