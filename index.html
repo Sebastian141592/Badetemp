@@ -1,0 +1,95 @@
+
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Badetemp i Larvik</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to bottom, #fff8dc, #ffe082);
+    }
+    header {
+      background-color: #ffca28;
+      padding: 1em;
+      text-align: center;
+      color: #333;
+    }
+    h1 {
+      margin: 0;
+      font-size: 1.8em;
+    }
+    .strand-list {
+      display: flex;
+      flex-direction: column;
+      padding: 1em;
+      gap: 1em;
+    }
+    .strand {
+      background-color: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      padding: 1em;
+      display: flex;
+      flex-direction: column;
+      text-decoration: none;
+      color: #333;
+    }
+    .strand:hover {
+      background-color: #fff3e0;
+    }
+    .footer {
+      text-align: center;
+      padding: 1em;
+      background-color: #ffe082;
+      color: #555;
+      font-size: 0.9em;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>☀️ Badetemperatur i Larvik</h1>
+    <p>Trykk på et badested for mer info</p>
+  </header>
+
+  <div class="strand-list">
+    <a class="strand" href="#lydhus">
+      <strong>Lydhusstranda 🏖️</strong>
+      <span>Luft: 21°C – Vind: 3 m/s – Vann: 18°C</span>
+    </a>
+    <a class="strand" href="#gon">
+      <strong>Gon ⛱️</strong>
+      <span>Luft: 22°C – Vind: 2 m/s – Vann: 17.5°C</span>
+    </a>
+    <a class="strand" href="#rakke">
+      <strong>Rakke 🌊</strong>
+      <span>Luft: 20°C – Vind: 4 m/s – Vann: 17°C</span>
+    </a>
+  </div>
+
+  <div class="strand-list">
+    <div class="strand" id="lydhus">
+      <strong>Lydhusstranda 🏖️</strong>
+      <p>Populær sandstrand i nærheten av Stavern med camping og kiosk. Familievennlig og fin for soling og bading.</p>
+      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e2/Lydhusstranda_camping_Stavern_Larvik_2.jpg/640px-Lydhusstranda_camping_Stavern_Larvik_2.jpg" width="100%" alt="Lydhusstranda">
+    </div>
+    <div class="strand" id="gon">
+      <strong>Gon ⛱️</strong>
+      <p>Langgrunt og rolig område, perfekt for barnefamilier. Fine svaberg og gressplener rundt.</p>
+      <img src="https://www.visitvestfold.com/globalassets/larvik/gon/gon-strand.jpg" width="100%" alt="Gon">
+    </div>
+    <div class="strand" id="rakke">
+      <strong>Rakke 🌊</strong>
+      <p>Ruglete og vakker natur, kjent for svaberg og utsikt. Også et flott sted å se solnedgangen.</p>
+      <img src="https://dynamic-media-cdn.tripadvisor.com/media/photo-o/14/3b/14/0c/utsikt-fra-rakke.jpg?w=1200&h=-1&s=1" width="100%" alt="Rakke">
+    </div>
+  </div>
+
+  <div class="footer">
+    © 2025 Sebastian og ChatGPT – Data fra MET og SeaTemperature.net
+  </div>
+</body>
+</html>
