@@ -1,7 +1,7 @@
 // Service worker — makes Finger-Tracking installable and work offline once
 // loaded, so it can run full-screen from the home screen (outside the browser UI).
 
-const CACHE = "ft-v2";
+const CACHE = "ft-v3";
 
 // Same-origin app shell to pre-cache. (No bare "./" — some static hosts don't
 // serve a directory index, which would make install fail.)

@@ -41,6 +41,10 @@ let rafId = null;
 let lastVideoTime = -1;
 let fpsEMA = 0;
 let lastFrameT = performance.now();
+let lastNewFrameT = 0;     // when the video last produced a fresh frame
+let wakeLock = null;       // Screen Wake Lock sentinel (keeps display awake)
+let watchdogTimer = null;  // periodic stall detector
+let recovering = false;
 
 const pointFilter = new PointFilter({ minCutoff: 1.5, beta: 0.02, dCutoff: 1.0 });
 const bridge = new DesktopBridge();
@@ -98,25 +102,54 @@ async function loadModel() {
 }
 
 // ---- Camera ----
+const CAM_CONSTRAINTS = {
+  video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+  audio: false,
+};
+
+// Keep the screen from sleeping while tracking (gestures aren't touches, so iOS
+// would otherwise dim/lock the display and pause the camera after a short while).
+async function requestWakeLock() {
+  try {
+    if ("wakeLock" in navigator && !wakeLock) {
+      wakeLock = await navigator.wakeLock.request("screen");
+      wakeLock.addEventListener("release", () => { wakeLock = null; });
+    }
+  } catch (_) { /* not supported / not allowed — watchdog still recovers */ }
+}
+async function releaseWakeLock() {
+  try { if (wakeLock) await wakeLock.release(); } catch (_) {}
+  wakeLock = null;
+}
+
+// If the camera track ends or the video gets paused, recover instead of dying.
+function attachStreamHandlers() {
+  const track = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null;
+  if (track) {
+    track.onended = () => { if (running) recoverCamera(); };
+    track.onmute = () => { if (running) recoverCamera(); };
+  }
+}
+
+async function acquireStream() {
+  stream = await navigator.mediaDevices.getUserMedia(CAM_CONSTRAINTS);
+  video.srcObject = stream;
+  video.setAttribute("playsinline", "");
+  await video.play();
+  overlay.width = video.videoWidth || 1280;
+  overlay.height = video.videoHeight || 720;
+  attachStreamHandlers();
+  lastNewFrameT = performance.now();
+}
+
 async function startCamera() {
+  if (running) return;
   try {
     ui.start.disabled = true;
     if (!landmarker) await loadModel();
 
     setStatus("Åpner kamera…");
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: "user",
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
-      },
-      audio: false,
-    });
-    video.srcObject = stream;
-    await video.play();
-
-    overlay.width = video.videoWidth;
-    overlay.height = video.videoHeight;
+    await acquireStream();
 
     running = true;
     ui.stop.disabled = false;
@@ -124,12 +157,53 @@ async function startCamera() {
     hint.classList.add("hidden");
     setStatus("Sporer", "live");
     lastFrameT = performance.now();
+
+    await requestWakeLock();
+    startWatchdog();
     loop();
   } catch (err) {
     console.error(err);
     ui.start.disabled = false;
     setStatus(cameraErrorMessage(err), "err");
   }
+}
+
+// Recover a stalled/stopped camera without the user having to press anything.
+async function recoverCamera() {
+  if (!running || recovering) return;
+  recovering = true;
+  try {
+    // 1) Cheapest fix: resume a merely-paused video element.
+    if (video.paused) { try { await video.play(); } catch (_) {} }
+
+    // 2) If the track actually ended, re-acquire the camera stream.
+    const track = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null;
+    const dead = !track || track.readyState === "ended";
+    const stalled = performance.now() - lastNewFrameT > 1400;
+    if (dead || (stalled && video.paused === false && video.readyState < 2)) {
+      if (stream) stream.getTracks().forEach((t) => t.stop());
+      await acquireStream();
+    }
+    await requestWakeLock();
+    if (running) setStatus("Sporer", "live");
+    lastNewFrameT = performance.now();
+  } catch (err) {
+    setStatus(cameraErrorMessage(err), "err");
+  } finally {
+    recovering = false;
+  }
+}
+
+function startWatchdog() {
+  stopWatchdog();
+  watchdogTimer = setInterval(() => {
+    if (!running) return;
+    if (performance.now() - lastNewFrameT > 1500) recoverCamera();
+  }, 1000);
+}
+function stopWatchdog() {
+  if (watchdogTimer) clearInterval(watchdogTimer);
+  watchdogTimer = null;
 }
 
 function cameraErrorMessage(err) {
@@ -144,6 +218,8 @@ function cameraErrorMessage(err) {
 function stopCamera() {
   running = false;
   if (rafId) cancelAnimationFrame(rafId);
+  stopWatchdog();
+  releaseWakeLock();
   if (stream) stream.getTracks().forEach((t) => t.stop());
   stream = null;
   ctx.clearRect(0, 0, overlay.width, overlay.height);
@@ -155,6 +231,17 @@ function stopCamera() {
   if (state.pinchDown) { bridge.up("left"); state.pinchDown = false; }
 }
 
+// Resume promptly when returning to the tab / app, and if the video is paused.
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && running) {
+    requestWakeLock();
+    recoverCamera();
+  }
+});
+video.addEventListener("pause", () => {
+  if (running) { try { video.play(); } catch (_) {} }
+});
+
 // ---- Main loop ----
 function loop() {
   if (!running) return;
@@ -163,6 +250,7 @@ function loop() {
   const now = performance.now();
   if (video.currentTime === lastVideoTime) return; // no new frame yet
   lastVideoTime = video.currentTime;
+  lastNewFrameT = now;                              // mark progress for the watchdog
 
   let results;
   try {
