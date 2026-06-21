@@ -40,8 +40,15 @@ const state = {
   rightDown: false,
   lastClickT: 0,
   scrollAnchorY: null,
-  cursor: { x: 0.5, y: 0.5 },   // normalised, post-gain
+  cursor: { x: 0.5, y: 0.5 },       // normalised, post-gain (current frame)
+  preFrameCursor: { x: 0.5, y: 0.5 }, // cursor from before this frame (pre pinch-jump)
+  pinchAnchor: null,                // frozen cursor captured when a pinch begins
+  dragging: false,                  // true once the hand moves enough while pinched
 };
+
+// How far the hand must move (normalised screen units) while pinched before we
+// treat it as a drag instead of a stationary click. Keeps clicks rock-steady.
+const DRAG_DEADZONE = 0.045;
 
 // ---- Connections (lines) between landmarks for drawing the skeleton ----
 const CONNECTIONS = [
@@ -167,7 +174,10 @@ function loop() {
     ui.gesture.textContent = "–";
     cursorEl.style.opacity = "0.35";
     // release any held button when the hand disappears
-    if (state.pinchDown) { bridge.up("left"); state.pinchDown = false; cursorEl.classList.remove("pinch"); }
+    if (state.pinchDown) { bridge.up("left"); cursorEl.classList.remove("pinch"); }
+    state.pinchDown = false;
+    state.pinchAnchor = null;
+    state.dragging = false;
     state.scrollAnchorY = null;
     return;
   }
@@ -208,11 +218,29 @@ function updatePointer(a, now) {
 
   const sm = pointFilter.filter(nx, ny, now);
 
-  // Apply gain ("zoom"): expand a central region to the full screen so the
-  // fingertip doesn't need to reach the camera edges.
+  // Apply gain ("zoom"): expand a central region to the full screen so small
+  // hand movements cover the whole screen — no need to reach the camera edges.
   const gain = parseFloat(ui.gain.value);
-  const gx = clamp01((sm.x - 0.5) * gain + 0.5);
-  const gy = clamp01((sm.y - 0.5) * gain + 0.5);
+  let gx = clamp01((sm.x - 0.5) * gain + 0.5);
+  let gy = clamp01((sm.y - 0.5) * gain + 0.5);
+
+  // Remember where the cursor was *before* this frame, so a pinch can anchor to
+  // the aim point instead of the spot the fingertip jumps to when it meets the thumb.
+  state.preFrameCursor.x = state.cursor.x;
+  state.preFrameCursor.y = state.cursor.y;
+
+  // While pinched, hold the cursor still for a precise click; only follow the
+  // hand once it clearly moves (then it's a drag).
+  if (state.pinchDown && state.pinchAnchor) {
+    const moved = Math.hypot(gx - state.pinchAnchor.x, gy - state.pinchAnchor.y);
+    if (!state.dragging && moved < DRAG_DEADZONE) {
+      gx = state.pinchAnchor.x;
+      gy = state.pinchAnchor.y;
+    } else {
+      state.dragging = true;
+    }
+  }
+
   state.cursor.x = gx;
   state.cursor.y = gy;
 
@@ -231,17 +259,20 @@ function handleGesture(gesture, a) {
 
   cursorEl.classList.toggle("pinch", isPinch || isRight);
 
-  // Left pinch = press / drag / click
+  // Left pinch = press / drag / click. Anchor to the aim point captured the
+  // frame before the pinch so the fingertip's jump toward the thumb can't move it.
   if (isPinch && !state.pinchDown) {
     state.pinchDown = true;
+    state.dragging = false;
+    state.pinchAnchor = { x: state.preFrameCursor.x, y: state.preFrameCursor.y };
     bridge.down("left");
-    dispatchClickFeedback();
+    dispatchClickAt(state.pinchAnchor.x, state.pinchAnchor.y);
   } else if (!isPinch && state.pinchDown) {
     state.pinchDown = false;
+    state.dragging = false;
+    state.pinchAnchor = null;
     bridge.up("left");
-    const now = performance.now();
-    // Treat a quick press+release as a click for the bridge already handled by down/up.
-    state.lastClickT = now;
+    state.lastClickT = performance.now();
   }
 
   // Right pinch = right click (edge-triggered)
@@ -267,10 +298,10 @@ function handleGesture(gesture, a) {
   }
 }
 
-function dispatchClickFeedback() {
-  // Visual + DOM click on whatever the virtual cursor hovers (in-browser control).
-  const x = state.cursor.x * window.innerWidth;
-  const y = state.cursor.y * window.innerHeight;
+function dispatchClickAt(nx, ny) {
+  // DOM click on whatever the virtual cursor hovers (in-browser control).
+  const x = nx * window.innerWidth;
+  const y = ny * window.innerHeight;
   const el = document.elementFromPoint(x, y);
   if (el && el !== cursorEl && !cursorEl.contains(el)) {
     el.dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: x, clientY: y }));
