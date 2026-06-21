@@ -3,6 +3,7 @@ import { HandLandmarker, FilesetResolver } from
 import { PointFilter } from "./euro.js";
 import { analyzeHand, classifyGesture } from "./gestures.js";
 import { DesktopBridge } from "./bridge.js";
+import { BubbleGame } from "./game.js";
 
 // ---- DOM ----
 const $ = (id) => document.getElementById(id);
@@ -19,7 +20,18 @@ const ui = {
   gain: $("gain"), smooth: $("smooth"), pinch: $("pinch"),
   mirror: $("mirror"), showLandmarks: $("showLandmarks"),
   bridgeUrl: $("bridgeUrl"), bridgeBtn: $("bridgeBtn"), bridgeStatus: $("bridgeStatus"),
+  gameBtn: $("gameBtn"),
 };
+
+// ---- Test game ----
+const game = new BubbleGame({
+  layer: $("gameLayer"),
+  scoreEl: $("gameScore"),
+  timeEl: $("gameTime"),
+  bestEl: $("gameBest"),
+  resultEl: $("gameResult"),
+  finalEl: $("gameFinal"),
+});
 
 // ---- State ----
 let landmarker = null;
@@ -266,6 +278,7 @@ function handleGesture(gesture, a) {
     state.dragging = false;
     state.pinchAnchor = { x: state.preFrameCursor.x, y: state.preFrameCursor.y };
     bridge.down("left");
+    clickRipple(state.pinchAnchor.x, state.pinchAnchor.y);
     dispatchClickAt(state.pinchAnchor.x, state.pinchAnchor.y);
   } else if (!isPinch && state.pinchDown) {
     state.pinchDown = false;
@@ -296,6 +309,15 @@ function handleGesture(gesture, a) {
   } else {
     state.scrollAnchorY = null;
   }
+}
+
+function clickRipple(nx, ny) {
+  const r = document.createElement("div");
+  r.className = "click-ripple";
+  r.style.left = nx * window.innerWidth + "px";
+  r.style.top = ny * window.innerHeight + "px";
+  document.body.appendChild(r);
+  setTimeout(() => r.remove(), 450);
 }
 
 function dispatchClickAt(nx, ny) {
@@ -356,6 +378,14 @@ applyMirror();
 // ---- Buttons ----
 ui.start.addEventListener("click", startCamera);
 ui.stop.addEventListener("click", stopCamera);
+
+// ---- Game wiring ----
+ui.gameBtn.addEventListener("click", () => {
+  if (!running) startCamera();   // need the camera to play
+  game.start();
+});
+$("gameAgain").addEventListener("click", () => game.start());
+$("gameClose").addEventListener("click", () => game.close());
 window.addEventListener("beforeunload", () => { if (stream) stream.getTracks().forEach((t) => t.stop()); });
 
 // Friendly check for camera API availability.

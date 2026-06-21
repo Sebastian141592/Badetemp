@@ -48,6 +48,8 @@
           <div><span class="k">Gest</span><span class="v" id="gesture">–</span></div>
         </section>
 
+        <button id="gameBtn" class="btn">🎮 Start test-spill</button>
+
         <section class="controls">
           <label class="ctl">
             <span>Følsomhet (små bevegelser)</span>
@@ -59,7 +61,7 @@
           </label>
           <label class="ctl">
             <span>Klem-terskel (klikk)</span>
-            <input type="range" id="pinch" min="0.25" max="0.9" step="0.01" value="0.45" />
+            <input type="range" id="pinch" min="0.25" max="0.9" step="0.01" value="0.55" />
           </label>
           <label class="ctl switch">
             <span>Speilvend kamera</span>
@@ -97,6 +99,21 @@
     <footer class="foot">
       <span>Kjører helt lokalt i nettleseren · MediaPipe Hands · ingen data forlater enheten</span>
     </footer>
+  </div>
+
+  <!-- Test game overlay: pop the bubbles by pointing + pinching -->
+  <div id="gameLayer" class="game-layer" hidden>
+    <div class="game-hud">
+      <span>🎯 Poeng: <b id="gameScore">0</b></span>
+      <span>⏱️ Tid: <b id="gameTime">30</b></span>
+      <span>🔥 Beste: <b id="gameBest">0</b></span>
+    </div>
+    <div class="game-result" id="gameResult" hidden>
+      <h2>Ferdig!</h2>
+      <p>Du fikk <b id="gameFinal">0</b> poeng</p>
+      <button id="gameAgain" class="btn primary">Spill igjen</button>
+      <button id="gameClose" class="btn">Lukk</button>
+    </div>
   </div>
 
   <script type="module" src="js/app.js"></script>
