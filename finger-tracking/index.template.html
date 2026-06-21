@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0b1020" />
+  <title>Finger-Tracking · Styr enheten med fingrene</title>
+
+  <!-- Installerbar app (PWA) -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Finger-Tracking" />
+
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo">✋</span>
+        <div>
+          <h1>Finger-Tracking</h1>
+          <p class="tagline">Presis sporing av fingrene via kameraet</p>
+        </div>
+      </div>
+      <div class="status" id="status">
+        <span class="dot" id="statusDot"></span>
+        <span id="statusText">Klar til start</span>
+      </div>
+    </header>
+
+    <main class="stage">
+      <div class="video-wrap" id="videoWrap">
+        <video id="video" playsinline muted autoplay></video>
+        <canvas id="overlay"></canvas>
+        <div class="hint" id="hint">
+          <p>Trykk <strong>Start kamera</strong> og hold hånden foran kameraet.</p>
+        </div>
+      </div>
+
+      <!-- Virtuell markør som styres av pekefingeren -->
+      <div id="cursor" class="cursor" hidden>
+        <div class="cursor-ring"></div>
+        <div class="cursor-dot"></div>
+      </div>
+
+      <aside class="panel">
+        <button id="startBtn" class="btn primary">▶ Start kamera</button>
+        <button id="stopBtn" class="btn" disabled>■ Stopp</button>
+
+        <section class="metrics">
+          <div><span class="k">FPS</span><span class="v" id="fps">0</span></div>
+          <div><span class="k">Hender</span><span class="v" id="hands">0</span></div>
+          <div><span class="k">Gest</span><span class="v" id="gesture">–</span></div>
+        </section>
+
+        <button id="gameBtn" class="btn">🎮 Start test-spill</button>
+
+        <section class="controls">
+          <label class="ctl">
+            <span>Følsomhet (små bevegelser)</span>
+            <input type="range" id="gain" min="1" max="6" step="0.1" value="2.6" />
+          </label>
+          <label class="ctl">
+            <span>Respons (høyere = mindre forsinkelse)</span>
+            <input type="range" id="smooth" min="0.5" max="8" step="0.1" value="3" />
+          </label>
+          <label class="ctl">
+            <span>Klem-terskel (klikk)</span>
+            <input type="range" id="pinch" min="0.25" max="0.9" step="0.01" value="0.55" />
+          </label>
+          <label class="ctl switch">
+            <span>Speilvend kamera</span>
+            <input type="checkbox" id="mirror" checked />
+          </label>
+          <label class="ctl switch">
+            <span>Vis landemerker</span>
+            <input type="checkbox" id="showLandmarks" checked />
+          </label>
+        </section>
+
+        <section class="bridge">
+          <h2>Styr en ekte PC / Mac</h2>
+          <p class="muted">Koble til en lokal agent for å flytte den ekte musepekeren.</p>
+          <div class="bridge-row">
+            <input type="text" id="bridgeUrl" value="ws://localhost:8765" spellcheck="false" />
+            <button id="bridgeBtn" class="btn small">Koble til</button>
+          </div>
+          <span class="bridge-status" id="bridgeStatus">Ikke tilkoblet</span>
+        </section>
+
+        <details class="legend">
+          <summary>Gester</summary>
+          <ul>
+            <li><b>Peke</b> – pekefingeren styrer markøren</li>
+            <li><b>Klyp</b> (tommel + peke) – venstreklikk / dra</li>
+            <li><b>Klyp tommel + langfinger</b> – høyreklikk</li>
+            <li><b>To fingre opp</b> – rull (beveg opp/ned)</li>
+            <li><b>Åpen hånd</b> – slipp / ingen handling</li>
+          </ul>
+        </details>
+      </aside>
+    </main>
+
+    <footer class="foot">
+      <span>Kjører helt lokalt i nettleseren · MediaPipe Hands · ingen data forlater enheten</span>
+    </footer>
+  </div>
+
+  <!-- Test game overlay: pop the bubbles by pointing + pinching -->
+  <div id="gameLayer" class="game-layer" hidden>
+    <div class="game-hud">
+      <span>🎯 Poeng: <b id="gameScore">0</b></span>
+      <span>⏱️ Tid: <b id="gameTime">30</b></span>
+      <span>🔥 Beste: <b id="gameBest">0</b></span>
+    </div>
+    <div class="game-result" id="gameResult" hidden>
+      <h2>Ferdig!</h2>
+      <p>Du fikk <b id="gameFinal">0</b> poeng</p>
+      <button id="gameAgain" class="btn primary">Spill igjen</button>
+      <button id="gameClose" class="btn">Lukk</button>
+    </div>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
