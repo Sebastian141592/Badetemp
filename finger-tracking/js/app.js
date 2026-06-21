@@ -66,6 +66,10 @@ const state = {
 // treat it as a drag instead of a stationary click. Keeps clicks rock-steady.
 const DRAG_DEADZONE = 0.045;
 
+// Keep the cursor/gesture alive through brief detection gaps (ms).
+const HAND_GRACE_MS = 350;
+let lastHandT = 0;
+
 // ---- Connections (lines) between landmarks for drawing the skeleton ----
 const CONNECTIONS = [
   [0,1],[1,2],[2,3],[3,4],
@@ -87,23 +91,42 @@ async function loadModel() {
   const fileset = await FilesetResolver.forVisionTasks(
     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
   );
-  landmarker = await HandLandmarker.createFromOptions(fileset, {
+  const options = {
     baseOptions: {
       modelAssetPath:
         "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
       delegate: "GPU",
     },
     runningMode: "VIDEO",
-    numHands: 2,
+    // Track a single hand: half the work (much steadier + lighter on phones)
+    // and the app only ever controls with one hand anyway.
+    numHands: 1,
+    // Detect at a normal bar, but hold onto an already-tracked hand through
+    // brief blur/occlusion so tracking doesn't keep dropping out.
     minHandDetectionConfidence: 0.5,
-    minHandPresenceConfidence: 0.5,
-    minTrackingConfidence: 0.5,
-  });
+    minHandPresenceConfidence: 0.35,
+    minTrackingConfidence: 0.35,
+  };
+  try {
+    landmarker = await HandLandmarker.createFromOptions(fileset, options);
+  } catch (e) {
+    // Some mobile GPUs/WebGL contexts are flaky — fall back to CPU so it still runs.
+    console.warn("GPU delegate failed, falling back to CPU", e);
+    options.baseOptions.delegate = "CPU";
+    landmarker = await HandLandmarker.createFromOptions(fileset, options);
+  }
 }
 
 // ---- Camera ----
+// Lower resolution + capped framerate keeps memory/thermal/GPU load down on
+// phones, which is what stops iOS from muting (dropping) the camera stream.
 const CAM_CONSTRAINTS = {
-  video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+  video: {
+    facingMode: "user",
+    width: { ideal: 640 },
+    height: { ideal: 480 },
+    frameRate: { ideal: 30, max: 30 },
+  },
   audio: false,
 };
 
@@ -126,8 +149,16 @@ async function releaseWakeLock() {
 function attachStreamHandlers() {
   const track = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null;
   if (track) {
-    track.onended = () => { if (running) recoverCamera(); };
-    track.onmute = () => { if (running) recoverCamera(); };
+    track.onended = () => { if (running) recoverCamera(true); };
+    // iOS mutes the track on interruption; it often un-mutes by itself, so just
+    // resume on unmute and only force a rebuild if it stays muted (watchdog).
+    track.onmute = () => { if (running) setStatus("Kamera pauset…", "live"); };
+    track.onunmute = () => {
+      if (!running) return;
+      try { video.play(); } catch (_) {}
+      lastNewFrameT = performance.now();
+      setStatus("Sporer", "live");
+    };
   }
 }
 
@@ -169,18 +200,23 @@ async function startCamera() {
 }
 
 // Recover a stalled/stopped camera without the user having to press anything.
-async function recoverCamera() {
+// `force` skips the cheap resume and rebuilds the stream outright.
+async function recoverCamera(force = false) {
   if (!running || recovering) return;
   recovering = true;
   try {
-    // 1) Cheapest fix: resume a merely-paused video element.
-    if (video.paused) { try { await video.play(); } catch (_) {} }
+    // 1) Cheapest fix: resume a merely-paused video element, then give it a
+    //    moment to start producing frames again.
+    if (!force && video.paused) {
+      try { await video.play(); } catch (_) {}
+      await new Promise((r) => setTimeout(r, 250));
+    }
 
-    // 2) If the track actually ended, re-acquire the camera stream.
+    // 2) Still not producing fresh frames? Fully rebuild the camera stream.
     const track = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null;
     const dead = !track || track.readyState === "ended";
-    const stalled = performance.now() - lastNewFrameT > 1400;
-    if (dead || (stalled && video.paused === false && video.readyState < 2)) {
+    const stalled = performance.now() - lastNewFrameT > 1200;
+    if (force || dead || stalled) {
       if (stream) stream.getTracks().forEach((t) => t.stop());
       await acquireStream();
     }
@@ -271,9 +307,15 @@ function loop() {
   ctx.clearRect(0, 0, overlay.width, overlay.height);
 
   if (hands.length === 0) {
+    // Brief dropout (blur/fast move): hold the cursor + gesture state for a
+    // short grace period so tracking doesn't flicker or release the pinch.
+    if (now - lastHandT < HAND_GRACE_MS) {
+      cursorEl.style.opacity = "0.7";
+      return;
+    }
     ui.gesture.textContent = "–";
     cursorEl.style.opacity = "0.35";
-    // release any held button when the hand disappears
+    // release any held button when the hand is truly gone
     if (state.pinchDown) { bridge.up("left"); cursorEl.classList.remove("pinch"); }
     state.pinchDown = false;
     state.pinchAnchor = null;
@@ -281,6 +323,7 @@ function loop() {
     state.scrollAnchorY = null;
     return;
   }
+  lastHandT = now;
   cursorEl.style.opacity = "1";
 
   // Choose the primary (first) hand for control.
