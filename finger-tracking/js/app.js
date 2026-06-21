@@ -328,7 +328,10 @@ function loop() {
 
   // Choose the primary (first) hand for control.
   const lm = hands[0];
-  const handed = results.handednesses?.[0]?.[0]?.categoryName || "Right";
+  const handed =
+    results.handednesses?.[0]?.[0]?.categoryName ||
+    results.handedness?.[0]?.[0]?.categoryName ||
+    "Right";
 
   if (ui.showLandmarks.checked) drawHand(lm);
 
@@ -350,9 +353,11 @@ function gestureLabel(g) {
 
 // ---- Pointer mapping + smoothing ----
 function updatePointer(a, now) {
-  // Smoothing params live-controlled by the "Glatting" slider.
+  // Smoothing params live-controlled by the "Respons" slider. A high beta keeps
+  // the cursor steady when still but follows fast moves with very little lag,
+  // which is what removes the perceived delay.
   const minCutoff = parseFloat(ui.smooth.value);
-  pointFilter.setParams({ minCutoff, beta: 0.02 });
+  pointFilter.setParams({ minCutoff, beta: 0.6 });
 
   // Raw normalised index-tip position. Mirror x when the preview is mirrored.
   let nx = a.pointer.x;

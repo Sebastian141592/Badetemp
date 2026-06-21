@@ -11,6 +11,8 @@ export class DesktopBridge {
     this.onState = () => {};
     this._lastSent = 0;
     this._minIntervalMs = 1000 / 120; // cap at 120 Hz to avoid flooding
+    this._wantConnected = false;      // user intent (drives auto-reconnect)
+    this._reconnectTimer = null;
   }
 
   get connected() {
@@ -18,26 +20,49 @@ export class DesktopBridge {
   }
 
   connect(url) {
-    this.disconnect();
-    this.url = url;
-    this.onState("connecting", url);
-    try {
-      this.ws = new WebSocket(url);
-    } catch (e) {
-      this.onState("error", String(e));
-      return;
-    }
-    this.ws.onopen = () => this.onState("open", url);
-    this.ws.onclose = () => this.onState("closed", url);
-    this.ws.onerror = () => this.onState("error", url);
+    this._wantConnected = true;
+    this.url = url || this.url;
+    this.#open();
   }
 
-  disconnect() {
+  #open() {
+    this.#teardownSocket();
+    this.onState("connecting", this.url);
+    try {
+      this.ws = new WebSocket(this.url);
+    } catch (e) {
+      this.onState("error", String(e));
+      this.#scheduleReconnect();
+      return;
+    }
+    this.ws.onopen = () => this.onState("open", this.url);
+    this.ws.onclose = () => {
+      this.onState("closed", this.url);
+      this.#scheduleReconnect();
+    };
+    this.ws.onerror = () => this.onState("error", this.url);
+  }
+
+  #scheduleReconnect() {
+    if (!this._wantConnected || this._reconnectTimer) return;
+    this._reconnectTimer = setTimeout(() => {
+      this._reconnectTimer = null;
+      if (this._wantConnected && !this.connected) this.#open();
+    }, 1500);
+  }
+
+  #teardownSocket() {
     if (this.ws) {
       this.ws.onopen = this.ws.onclose = this.ws.onerror = null;
       try { this.ws.close(); } catch (_) {}
       this.ws = null;
     }
+  }
+
+  disconnect() {
+    this._wantConnected = false;
+    if (this._reconnectTimer) { clearTimeout(this._reconnectTimer); this._reconnectTimer = null; }
+    this.#teardownSocket();
   }
 
   #send(obj) {

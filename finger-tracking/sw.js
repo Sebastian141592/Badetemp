@@ -1,23 +1,12 @@
 // Service worker — makes Finger-Tracking installable and work offline once
 // loaded, so it can run full-screen from the home screen (outside the browser UI).
 
-const CACHE = "ft-v4";
+const CACHE = "ft-v5";
 
-// Same-origin app shell to pre-cache. (No bare "./" — some static hosts don't
-// serve a directory index, which would make install fail.)
-const ASSETS = [
-  "./index.html",
-  "./css/style.css",
-  "./js/app.js",
-  "./js/euro.js",
-  "./js/gestures.js",
-  "./js/bridge.js",
-  "./js/game.js",
-  "./manifest.webmanifest",
-  "./icons/icon-192.png",
-  "./icons/icon-512.png",
-  "./icons/apple-touch-icon.png",
-];
+// index.html is fully self-contained (CSS, JS, icons + manifest inlined), so the
+// app shell is a single file. The cross-origin MediaPipe model/WASM is cached at
+// runtime below.
+const ASSETS = ["./index.html"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(

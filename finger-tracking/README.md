@@ -105,19 +105,37 @@ Kamera ─▶ MediaPipe HandLandmarker (WASM/GPU) ─▶ 21 punkter/hånd
 
 ## 📂 Struktur
 
+`index.html` er **selvstendig** — all CSS, JS og ikoner er bygget inn, så filen
+kan brukes/deles alene. Den genereres fra kildefilene under med `build.py`.
+
 ```
 finger-tracking/
-├── index.html            # UI
-├── css/style.css
+├── index.html            # ✅ ferdig, selvstendig app (generert – ikke rediger direkte)
+├── index.template.html   # kilde: HTML-strukturen
+├── build.py              # bygger index.html (python3 build.py)
+├── css/style.css         # kilde: stil
 ├── js/
 │   ├── app.js            # kamera, løkke, tegning, gest-tilstandsmaskin
 │   ├── gestures.js       # landemerke → gest
-│   ├── euro.js           # One Euro-filter
-│   └── bridge.js         # WebSocket-klient til desktop-agenten
+│   ├── euro.js           # One Euro-filter (lav forsinkelse)
+│   ├── bridge.js         # WebSocket-klient til desktop-agenten (auto-reconnect)
+│   └── game.js           # boble-test-spillet
+├── icons/                # app-ikoner (bygges inn som data-URI)
+├── sw.js                 # service worker (offline / installerbar)
 └── desktop-agent/
-    ├── agent.py          # flytter den ekte OS-musen (pyautogui)
+    ├── agent.py          # flytter den ekte OS-musen på PC/Mac/Linux (pyautogui)
     └── requirements.txt
 ```
+
+> **Vil du endre noe?** Rediger `index.template.html` / `css/` / `js/` og kjør
+> `python3 build.py` for å regenerere `index.html`.
+
+## ⚡ Mindre forsinkelse
+
+Pekerbevegelsen glattes med et One Euro-filter med høy `beta`, som holder
+markøren rolig når hånden står stille, men følger raske bevegelser med svært
+lite lag. Dra **«Respons»**-skyveren høyere for enda snappere føling (litt mer
+skjelving), eller lavere for jevnere (litt mer lag).
 
 ## 🔐 Personvern
 
