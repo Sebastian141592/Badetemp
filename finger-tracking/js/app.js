@@ -393,3 +393,10 @@ if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
   setStatus("Nettleseren støtter ikke kamera", "err");
   ui.start.disabled = true;
 }
+
+// Register the service worker so the app is installable + works offline.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  });
+}
